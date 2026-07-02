@@ -11,7 +11,16 @@ erneut drücken — der Text erscheint im aktiven Fenster. Läuft **komplett lok
 - 🧠 Auswahl zwischen 6 Whisper-Modellen — automatische Empfehlung passend zur Hardware
 - ✨ Optionale KI-Nachbearbeitung über zweiten Shortcut: Grammatik, Füllwörter
   und Selbstkorrekturen („ich komme um 9, nee 10 Uhr" → „Ich komme um 10 Uhr.")
-  werden lokal per Ollama geglättet
+  werden lokal per Ollama geglättet — mit wählbaren **Stilen** (Neutral, Formell,
+  Locker, Stichpunkte, E-Mail)
+- 🪟 **App-Profile**: KI-Stil automatisch je nach aktiver Anwendung
+  (Outlook → E-Mail-Stil, Discord → locker, Editor → aus)
+- 🌍 **Übersetzungs-Shortcut**: Deutsch (oder jede andere Sprache) diktieren,
+  englischer Text wird eingefügt
+- 🕘 **Verlauf** der letzten 50 Diktate (nur lokal), jederzeit erneut kopierbar
+- 🔇 **Auto-Stopp bei Stille** (optional): Aufnahme endet freihändig
+- 📖 **Wortersetzungen**: eigene Fachwörter/Namen werden zuverlässig korrigiert
+- 👋 Erste-Schritte-Assistent mit Mikrofon-Test beim ersten Start
 - ⚡ Auf einer RTX 4090: 1 Minute Diktat in ~0,5 s transkribiert
 - 🖥️ System-Tray, Einstellungs-App im modernen Karten-Design, Autostart-Option
 
@@ -57,6 +66,9 @@ Uhr ziehen). Bei laufender Aufnahme wird das Tray-Icon rot.
 |---|---|
 | Diktat starten/stoppen | Standard-Shortcut **Strg+Alt+Leertaste** (änderbar) oder Klick auf die Leiste |
 | Diktat mit KI-Glättung | **Strg+Alt+Enter** (änderbar) |
+| Diktat → englische Übersetzung | **Strg+Alt+T** (änderbar) |
+| Verlauf der letzten Diktate | Rechtsklick Tray-Icon → „Verlauf…" |
+| KI-Stil wechseln | Rechtsklick Tray-Icon → „KI-Stil" oder Einstellungen |
 | Einstellungen | Rechtsklick auf das Tray-Icon → „Einstellungen…" |
 | Modell schnell wechseln | Rechtsklick Tray-Icon → „Modell" |
 | Beenden | Rechtsklick Tray-Icon → „Beenden" |

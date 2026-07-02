@@ -89,6 +89,8 @@ class App:
 
         self.bind_hotkey()
         threading.Thread(target=self._init_transcriber, daemon=True).start()
+        if not self.cfg.get("first_run_done"):
+            self.request("welcome")
 
     # ------------------------------------------------------------ Startphase
 
@@ -131,6 +133,9 @@ class App:
         if self.cfg.get("cleanup_enabled") and cleanup_combo \
                 and cleanup_combo != self.cfg["hotkey"]:
             combos.append((cleanup_combo, "polish"))
+        translate_combo = self.cfg.get("translate_hotkey", "")
+        if translate_combo and translate_combo not in [c for c, _ in combos]:
+            combos.append((translate_combo, "translate"))
         for combo, mode in combos:
             try:
                 handle = keyboard.add_hotkey(
@@ -200,7 +205,22 @@ class App:
         self.state = "recording"
         if self.tray:
             self.tray.set_recording(True)
-        log.info("Aufnahme gestartet")
+        if float(self.cfg.get("auto_stop_silence") or 0) > 0:
+            threading.Thread(target=self._silence_monitor, daemon=True).start()
+        log.info("Aufnahme gestartet (%s)", mode)
+
+    def _silence_monitor(self):
+        """Stoppt die Aufnahme automatisch nach laengerer Stille."""
+        while self.state == "recording":
+            time.sleep(0.1)
+            limit = float(self.cfg.get("auto_stop_silence") or 0)
+            if limit <= 0:
+                return
+            if self.recorder.voice_seen and \
+                    time.time() - self.recorder.last_voice > limit:
+                log.info("Auto-Stopp: %.1fs Stille", limit)
+                self.stop_recording()
+                return
 
     def stop_recording(self):
         if self.state != "recording":
@@ -212,10 +232,11 @@ class App:
             self.state = "idle"
             return
         self.state = "transcribing"
-        threading.Thread(target=self._transcribe_worker, args=(audio_data,),
+        threading.Thread(target=self._transcribe_worker,
+                         args=(audio_data, self._rec_mode),
                          daemon=True).start()
 
-    def _transcribe_worker(self, audio_data):
+    def _transcribe_worker(self, audio_data, mode):
         try:
             # Falls das Modell noch laedt, kurz warten
             for _ in range(600):
@@ -229,19 +250,29 @@ class App:
                 language=self.cfg["language"],
                 beam_size=self.cfg.get("beam_size", 5),
                 initial_prompt=self.cfg.get("initial_prompt", ""),
+                task="translate" if mode == "translate" else "transcribe",
             )
-            if text and self._rec_mode == "polish" \
-                    and self.cfg.get("cleanup_enabled"):
-                self.state = "polishing"
-                import polish
-                t0 = time.time()
-                text = polish.polish(
-                    text,
-                    model=self.cfg.get("cleanup_model", "qwen3:8b"),
-                    url=self.cfg.get("ollama_url", "http://127.0.0.1:11434"),
-                )
-                log.info("KI-Glaettung in %.2fs: %r", time.time() - t0,
-                         text[:80] + ("..." if len(text) > 80 else ""))
+            import textrules
+            text = textrules.apply(text)
+            if text and mode == "polish" and self.cfg.get("cleanup_enabled"):
+                # Stil ggf. anhand der aktiven App waehlen (app-profile.txt)
+                import winapp
+                style = textrules.style_for(
+                    winapp.get_foreground_exe(),
+                    self.cfg.get("cleanup_style", "neutral"))
+                if style != "aus":
+                    self.state = "polishing"
+                    import polish
+                    t0 = time.time()
+                    text = polish.polish(
+                        text,
+                        model=self.cfg.get("cleanup_model", "qwen3:8b"),
+                        url=self.cfg.get("ollama_url", "http://127.0.0.1:11434"),
+                        style=style,
+                    )
+                    log.info("KI-Glaettung (%s) in %.2fs: %r", style,
+                             time.time() - t0,
+                             text[:80] + ("..." if len(text) > 80 else ""))
             if text:
                 injector.inject(
                     text,
@@ -249,6 +280,9 @@ class App:
                     append_space=self.cfg.get("append_space", True),
                     restore_clipboard=self.cfg.get("restore_clipboard", True),
                 )
+                import history
+                history.add(text, {"raw": "Diktat", "polish": "KI",
+                                   "translate": "EN"}.get(mode, "Diktat"))
         except Exception:
             log.exception("Transkription fehlgeschlagen")
         finally:
@@ -269,8 +303,17 @@ class App:
                     self._open_settings()
                 elif req == "quit":
                     self.quit()
+                elif req == "history":
+                    import history_ui
+                    history_ui.HistoryWindow(self.root, self)
+                elif req == "welcome":
+                    import welcome_ui
+                    welcome_ui.WelcomeWindow(self.root, self)
                 elif isinstance(req, tuple) and req[0] == "model":
                     self._change_model(req[1])
+                elif isinstance(req, tuple) and req[0] == "style":
+                    self.cfg["cleanup_style"] = req[1]
+                    config.save(self.cfg)
         except queue.Empty:
             pass
 
@@ -301,7 +344,8 @@ class App:
 
     def apply_settings(self, new_cfg):
         old = self.cfg
-        hotkey_keys = ("hotkey", "hotkey_mode", "cleanup_hotkey", "cleanup_enabled")
+        hotkey_keys = ("hotkey", "hotkey_mode", "cleanup_hotkey",
+                       "cleanup_enabled", "translate_hotkey")
         self.cfg = new_cfg
         config.save(new_cfg)
         self.recorder.device_index = new_cfg.get("device_index")

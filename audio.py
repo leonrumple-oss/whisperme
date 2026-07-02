@@ -1,10 +1,12 @@
 """Mikrofonaufnahme mit Pegelanzeige (sounddevice, 16 kHz mono)."""
 import threading
+import time
 
 import numpy as np
 import sounddevice as sd
 
 SAMPLE_RATE = 16000
+VOICE_LEVEL = 0.10  # skalierter Pegel, ab dem wir von Sprache ausgehen
 
 
 class Recorder:
@@ -14,6 +16,8 @@ class Recorder:
         self._stream = None
         self._lock = threading.Lock()
         self.level = 0.0  # aktueller Eingangspegel 0..1 fuer die Overlay-Anzeige
+        self.voice_seen = False  # wurde seit start() schon gesprochen?
+        self.last_voice = 0.0    # Zeitstempel der letzten Sprachaktivitaet
 
     @property
     def recording(self) -> bool:
@@ -24,6 +28,8 @@ class Recorder:
             return
         self._chunks = []
         self.level = 0.0
+        self.voice_seen = False
+        self.last_voice = time.time()
 
         def callback(indata, frames, time_info, status):
             data = indata[:, 0].copy()
@@ -32,6 +38,9 @@ class Recorder:
             rms = float(np.sqrt(np.mean(np.square(data))))
             # Sprach-RMS liegt grob bei 0.02-0.3, auf 0..1 skalieren
             self.level = min(1.0, rms * 8.0)
+            if self.level > VOICE_LEVEL:
+                self.voice_seen = True
+                self.last_voice = time.time()
 
         self._stream = sd.InputStream(
             samplerate=SAMPLE_RATE,

@@ -32,8 +32,10 @@ class Tray:
                 lambda: app.toggle_recording(),
                 default=True,
             ),
+            pystray.MenuItem("Verlauf…", lambda: app.request("history")),
             pystray.MenuItem("Einstellungen…", lambda: app.request("settings")),
             pystray.MenuItem("Modell", pystray.Menu(*self._model_items())),
+            pystray.MenuItem("KI-Stil", pystray.Menu(*self._style_items())),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Beenden", lambda: app.request("quit")),
         )
@@ -48,6 +50,19 @@ class Tray:
                 name,
                 (lambda n: lambda: self.app.request(("model", n)))(name),
                 checked=(lambda n: lambda item: self.app.cfg["model"] == n)(name),
+                radio=True,
+            ))
+        return items
+
+    def _style_items(self):
+        import polish
+        items = []
+        for key, label in polish.STYLE_LABELS.items():
+            items.append(pystray.MenuItem(
+                label,
+                (lambda k: lambda: self.app.request(("style", k)))(key),
+                checked=(lambda k: lambda item:
+                         self.app.cfg.get("cleanup_style", "neutral") == k)(key),
                 radio=True,
             ))
         return items

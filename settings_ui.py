@@ -37,6 +37,7 @@ MODEL_LABELS = {
 LANG_LABELS = {"de": "Deutsch", "auto": "Automatisch", "en": "Englisch"}
 MODE_LABELS = {"toggle": "Umschalten", "hold": "Halten (PTT)"}
 THEME_LABELS = {"light": "Hell", "dark": "Dunkel"}
+SILENCE_LABELS = {0: "Aus", 1.5: "1,5 s", 2.5: "2,5 s", 4.0: "4 s"}
 
 DWMWA_USE_IMMERSIVE_DARK_MODE = 20
 
@@ -93,6 +94,29 @@ class SettingsWindow:
         self.mode_seg = self._segment(row, list(MODE_LABELS.values()),
                                       MODE_LABELS.get(cfg["hotkey_mode"], "Umschalten"))
         self.mode_seg.pack(side="right")
+
+        row = self._row(card, "Auto-Stopp bei Stille")
+        current_silence = SILENCE_LABELS.get(
+            float(cfg.get("auto_stop_silence") or 0), "Aus")
+        self.silence_seg = self._segment(row, list(SILENCE_LABELS.values()),
+                                         current_silence)
+        self.silence_seg.pack(side="right")
+
+        row = self._row(card, "Shortcut Übersetzen → EN")
+        self.translate_hotkey_var = tk.StringVar(value=cfg.get("translate_hotkey", ""))
+        self.translate_chip = ctk.CTkLabel(
+            row, text=pretty_hotkey(cfg.get("translate_hotkey", "")) or "—",
+            font=self.f_label, text_color=TXT, fg_color=FIELD,
+            corner_radius=8, padx=14, pady=5)
+        self.translate_chip.pack(side="left", padx=(14, 0))
+        self.translate_capture_btn = ctk.CTkButton(
+            row, text="Ändern…", width=92, height=30, corner_radius=15,
+            font=self.f_label, fg_color=PRIMARY, hover_color=PRIMARY_HOVER,
+            text_color=PRIMARY_TXT,
+            command=lambda: self._capture(self.translate_chip,
+                                          self.translate_capture_btn,
+                                          self.translate_hotkey_var))
+        self.translate_capture_btn.pack(side="right")
 
         # ---------------------------------------------------- Karte Erkennung
         card = self._card(outer, "Erkennung")
@@ -169,6 +193,28 @@ class SettingsWindow:
                                                  width=330)
         self.cleanup_model_menu.pack(side="right")
 
+        row = self._row(card, "Stil")
+        self.style_seg = self._segment(
+            row, list(polish.STYLE_LABELS.values()),
+            polish.STYLE_LABELS.get(cfg.get("cleanup_style", "neutral"), "Neutral"))
+        self.style_seg.pack(side="right")
+
+        # ------------------------------------------------- Karte Diktat-Regeln
+        card = self._card(outer, "Diktat-Regeln")
+        ctk.CTkLabel(card, text="Einfache Textdateien — Änderungen gelten sofort, "
+                     "ohne Neustart.", font=self.f_small, text_color=SUB
+                     ).pack(anchor="w", padx=18)
+        row = self._row(card, "Feste Wortersetzungen (Namen, Fachwörter …)")
+        ctk.CTkButton(row, text="Bearbeiten…", width=110, height=30,
+                      corner_radius=15, font=self.f_label, fg_color=FIELD,
+                      hover_color=FIELD_HOVER, text_color=TXT,
+                      command=lambda: self._open_rules("rules")).pack(side="right")
+        row = self._row(card, "KI-Stil je nach App (Outlook, Discord …)")
+        ctk.CTkButton(row, text="Bearbeiten…", width=110, height=30,
+                      corner_radius=15, font=self.f_label, fg_color=FIELD,
+                      hover_color=FIELD_HOVER, text_color=TXT,
+                      command=lambda: self._open_rules("profiles")).pack(side="right")
+
         # ------------------------------------------------------- Karte System
         card = self._card(outer, "Darstellung & System")
         row = self._row(card, "Design")
@@ -188,6 +234,11 @@ class SettingsWindow:
                       corner_radius=17, font=self.f_label, fg_color=PRIMARY,
                       hover_color=PRIMARY_HOVER, text_color=PRIMARY_TXT,
                       command=self.win.destroy).pack(side="right")
+        ctk.CTkButton(footer, text="Verlauf…", width=110, height=34,
+                      corner_radius=17, font=self.f_label, fg_color="transparent",
+                      hover_color=FIELD_HOVER, text_color=TXT, border_width=1,
+                      border_color=BORDER,
+                      command=lambda: self.app.request("history")).pack(side="left")
 
         self._building = False
         self._set_titlebar_dark(cfg.get("theme") == "dark")
@@ -257,6 +308,16 @@ class SettingsWindow:
 
     # --------------------------------------------------------------- Aktionen
 
+    def _open_rules(self, which: str):
+        import os
+        import textrules
+        textrules.ensure_files()
+        path = textrules.RULES_FILE if which == "rules" else textrules.PROFILE_FILE
+        try:
+            os.startfile(str(path))
+        except Exception:
+            pass
+
     def _capture(self, chip, btn, var):
         btn.configure(state="disabled")
         chip.configure(text="Tasten drücken…")
@@ -298,6 +359,11 @@ class SettingsWindow:
         new["cleanup_enabled"] = bool(self.cleanup_switch.get())
         new["cleanup_hotkey"] = self.cleanup_hotkey_var.get()
         new["cleanup_model"] = self.cleanup_model_menu.get()
+        new["cleanup_style"] = self._rev(polish.STYLE_LABELS,
+                                         self.style_seg.get(), "neutral")
+        new["translate_hotkey"] = self.translate_hotkey_var.get()
+        new["auto_stop_silence"] = self._rev(SILENCE_LABELS,
+                                             self.silence_seg.get(), 0)
 
         theme_changed = new["theme"] != self.app.cfg.get("theme")
         self.app.apply_settings(new)

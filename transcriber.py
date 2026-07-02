@@ -91,13 +91,18 @@ class Transcriber:
             gc.collect()
         self.ensure_loaded()
 
-    def transcribe(self, audio, language="de", beam_size=5, initial_prompt="") -> str:
-        """Transkribiert ein float32-Array (16 kHz) und liefert den Text."""
+    def transcribe(self, audio, language="de", beam_size=5, initial_prompt="",
+                   task="transcribe") -> str:
+        """Transkribiert ein float32-Array (16 kHz) und liefert den Text.
+
+        task="translate" liefert eine englische Uebersetzung (Whisper-nativ).
+        """
         self.ensure_loaded()
         duration = len(audio) / 16000.0
         lang = None if language in ("", "auto") else language
         kwargs = dict(
             language=lang,
+            task=task,
             beam_size=beam_size,
             vad_filter=True,
             condition_on_previous_text=False,

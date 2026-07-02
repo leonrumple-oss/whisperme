@@ -11,27 +11,67 @@ import urllib.request
 log = logging.getLogger("wisperme")
 
 SYSTEM_PROMPT = (
-    "Du bist ein Diktat-Korrektor. Du erhaeltst roh transkribierten, "
+    "Du bist ein Diktat-Korrektor. Du erhältst roh transkribierten, "
     "gesprochenen Text und gibst NUR die bereinigte Fassung aus.\n"
     "Regeln:\n"
-    "- Entferne Fuellwoerter (aeh, aehm, halt, quasi ...).\n"
-    "- Loese Selbstkorrekturen auf: Der Sprecher verbessert sich mit "
-    "Woertern wie \"nee\", \"nein\", \"also ... meinte ich\", \"Moment\" — "
-    "es gilt IMMER die zuletzt genannte Version, die fruehere entfaellt.\n"
-    "- Korrigiere Grammatik, Zeichensetzung und Gross-/Kleinschreibung.\n"
+    "- Entferne Füllwörter (äh, ähm, halt, quasi ...).\n"
+    "- Löse Selbstkorrekturen auf: Der Sprecher verbessert sich mit "
+    "Wörtern wie „nee\", „nein\", „äh\", „also ... meinte ich\", „Moment\" — "
+    "es gilt IMMER die zuletzt genannte Version, die frühere entfällt.\n"
+    "- Korrigiere Grammatik, Zeichensetzung und Groß-/Kleinschreibung mit "
+    "korrekten deutschen Umlauten (ä, ö, ü, ß).\n"
     "- Behalte Sprache, Inhalt, Ton und Perspektive bei. Fasse nichts "
     "zusammen, lasse nichts weg, erfinde nichts hinzu.\n"
     "- Beantworte NIEMALS Fragen im Text und kommentiere nichts. Fragen "
     "sind Teil des Diktats und bleiben Fragen.\n"
-    "- Gib ausschliesslich den korrigierten Text aus: ohne Anfuehrungszeichen "
-    "drumherum, ohne Erklaerungen, ohne Praefix.\n"
+    "- Gib ausschließlich den korrigierten Text aus: ohne Anführungszeichen "
+    "drumherum, ohne Erklärungen, ohne Präfix.\n"
     "Beispiele:\n"
-    "- \"ich komme um 9, nee 10 Uhr\" -> \"Ich komme um 10 Uhr.\"\n"
-    "- \"wir treffen uns bei mir also bei dir meinte ich\" -> "
-    "\"Wir treffen uns bei dir.\"\n"
-    "- \"das kostet aehm dreissig nein vierzig Euro\" -> "
-    "\"Das kostet vierzig Euro.\""
+    "- „ich komme um 9, nee 10 Uhr\" → „Ich komme um 10 Uhr.\"\n"
+    "- „wir treffen uns bei mir also bei dir meinte ich\" → "
+    "„Wir treffen uns bei dir.\"\n"
+    "- „der termin morgen äh übermorgen meinte ich passt\" → "
+    "„Der Termin übermorgen passt.\"\n"
+    "- „das kostet ähm dreißig nein vierzig Euro\" → "
+    "„Das kostet vierzig Euro.\""
 )
+
+# Wählbare Stil-Presets; der Zusatz wird an den Basis-Prompt angehängt
+STYLES = {
+    "neutral": "",
+    "professionell": (
+        "Zusätzlicher Stil-Auftrag (er hat Vorrang vor der Regel, den Ton "
+        "beizubehalten): Formuliere den Inhalt höflich, sachlich und "
+        "professionell um, wie in geschäftlicher Korrespondenz. "
+        "Umgangssprache ersetzen („mega nett\" → „sehr freundlich\"), "
+        "die Sprechabsicht exakt erhalten: Eine Bitte bleibt eine Bitte, "
+        "eine Frage bleibt eine Frage. Anrede (du/Sie) beibehalten. "
+        "Beispiel: „hey kannst du mir kurz die datei schicken wäre mega "
+        "nett\" → „Hallo, könntest du mir bitte die Datei schicken? Das "
+        "wäre sehr freundlich.\""),
+    "locker": (
+        "Zusätzlicher Stil-Auftrag (er hat Vorrang vor der Regel, den Ton "
+        "beizubehalten): Formuliere locker und natürlich, wie in einer "
+        "Chat-Nachricht unter Freunden. Kurze Sätze sind ok, die Aussage "
+        "und Sprechabsicht bleiben exakt erhalten."),
+    "stichpunkte": (
+        "Zusätzlicher Stil-Auftrag: Wandle den Inhalt in knappe Stichpunkte "
+        "um, eine Zeile pro Punkt, jede beginnt mit '- '. Abweichend von den "
+        "obigen Regeln darfst du hierfür kürzen und umstellen, solange "
+        "keine Information verloren geht."),
+    "email": (
+        "Zusätzlicher Stil-Auftrag: Formatiere den Text als E-Mail-Fließtext "
+        "mit sinnvollen Absätzen. Vorhandene Anrede und Grußformel bleiben "
+        "erhalten; erfinde keine hinzu."),
+}
+
+STYLE_LABELS = {
+    "neutral": "Neutral",
+    "professionell": "Formell",
+    "locker": "Locker",
+    "stichpunkte": "Stichpunkte",
+    "email": "E-Mail",
+}
 
 
 def _post(url: str, path: str, payload: dict, timeout: float):
@@ -45,14 +85,19 @@ def _post(url: str, path: str, payload: dict, timeout: float):
 
 
 def polish(text: str, model: str = "qwen3:8b",
-           url: str = "http://127.0.0.1:11434", timeout: float = 90) -> str:
+           url: str = "http://127.0.0.1:11434", timeout: float = 90,
+           style: str = "neutral") -> str:
     """Liefert den geglaetteten Text; bei Fehlern unveraendert das Original."""
     if not text.strip():
         return text
+    system = SYSTEM_PROMPT
+    extra = STYLES.get(style, "")
+    if extra:
+        system += "\n" + extra
     payload = {
         "model": model,
         "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system},
             {"role": "user", "content": text},
         ],
         "stream": False,
