@@ -303,9 +303,36 @@ class SettingsWindow:
         self.app.apply_settings(new)
 
         if theme_changed:
-            # Einstellungsfenster + Leiste wechseln live mit
-            ctk.set_appearance_mode("dark" if new["theme"] == "dark" else "light")
-            self._set_titlebar_dark(new["theme"] == "dark")
+            self._switch_theme(new["theme"])
+
+    def _switch_theme(self, theme: str):
+        """Wechselt Hell/Dunkel ohne sichtbares Element-fuer-Element-Geflacker.
+
+        customtkinter faerbt beim Moduswechsel jedes Widget einzeln um.
+        Eine deckende Flaeche in der Zielfarbe verdeckt diesen Umbau und
+        blendet danach in wenigen Schritten weich aus.
+        """
+        dark = theme == "dark"
+        target_bg = WINBG[1] if dark else WINBG[0]
+
+        cover = tk.Frame(self.win, bg=target_bg)
+        cover.place(x=0, y=0, relwidth=1, relheight=1)
+        cover.lift()
+        self.win.update_idletasks()
+
+        ctk.set_appearance_mode("dark" if dark else "light")
+        self._set_titlebar_dark(dark)
+
+        # kurz warten bis alle Widgets umgefaerbt sind, dann weich aufdecken
+        def reveal(step=0):
+            if step >= 4:
+                cover.destroy()
+                return
+            # Ausblenden ueber schrumpfende Hoehe (Tk kann keine Teiltransparenz)
+            cover.place_configure(relheight=1 - step * 0.25)
+            self.win.after(30, lambda: reveal(step + 1))
+
+        self.win.after(160, reveal)
 
     @staticmethod
     def _rev(mapping, label, default):
