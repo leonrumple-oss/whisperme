@@ -5,10 +5,10 @@ import customtkinter as ctk
 import pyperclip
 
 import history
-from settings_ui import (BORDER, CARD, FIELD, FIELD_HOVER, PRIMARY,
-                         PRIMARY_HOVER, PRIMARY_TXT, SUB, TXT, WINBG)
+from ui_theme import (BLUE, BORDER, CARD, FIELD, FIELD_HOVER, GREEN, PRIMARY,
+                      PRIMARY_HOVER, PRIMARY_TXT, SUB, TXT, VIOLET, WINBG)
 
-MODE_COLORS = {"KI": "#a86bff", "EN": "#4da3ff", "Diktat": "#3ad36b"}
+MODE_COLORS = {"KI": VIOLET, "EN": BLUE, "Diktat": GREEN}
 
 
 class HistoryWindow:

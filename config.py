@@ -28,6 +28,7 @@ DEFAULTS = {
     "ollama_url": "http://127.0.0.1:11434",
     "translate_hotkey": "ctrl+alt+t",  # Diktat -> englische Uebersetzung ("" = aus)
     "auto_stop_silence": 0,       # Sekunden Stille bis Auto-Stopp (0 = aus)
+    "mute_while_recording": False,  # Musik/Videos waehrend der Aufnahme stumm
     "first_run_done": False,      # steuert den Erste-Schritte-Assistenten
 }
 

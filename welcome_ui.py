@@ -6,17 +6,9 @@ import customtkinter as ctk
 import config
 from audio import Recorder
 from overlay import pretty_hotkey
-
-# Farbkonstanten lokal statt aus settings_ui, damit der Assistent beim
-# ersten Start nicht die schwere Importkette (transcriber) mitzieht
-WINBG = ("#ececef", "#17171d")
-CARD = ("#ffffff", "#23232c")
-TXT = ("#1b1b22", "#ececf2")
-SUB = ("#8a8a96", "#9a9aa8")
-FIELD = ("#f3f3f6", "#2d2d38")
-PRIMARY = ("#1a1a1f", "#e8e8f0")
-PRIMARY_HOVER = ("#31313a", "#cfcfd8")
-PRIMARY_TXT = ("#ffffff", "#17171d")
+# ui_theme ist leichtgewichtig — zieht keine schwere Importkette mit
+from ui_theme import (CARD, FIELD, GREEN, PRIMARY, PRIMARY_HOVER,
+                      PRIMARY_TXT, SUB, TXT, WINBG)
 
 
 class WelcomeWindow:
@@ -64,7 +56,7 @@ class WelcomeWindow:
                                         font=f_small, text_color=SUB)
         self.level_label.pack(anchor="w", padx=18)
         self.meter = ctk.CTkProgressBar(card, height=14, corner_radius=7,
-                                        fg_color=FIELD, progress_color="#3ad36b")
+                                        fg_color=FIELD, progress_color=GREEN)
         self.meter.set(0)
         self.meter.pack(fill="x", padx=18, pady=(6, 14))
 

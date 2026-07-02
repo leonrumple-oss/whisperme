@@ -1,8 +1,9 @@
 """Einstellungsfenster im modernen Karten-Design (customtkinter).
 
-Alle Aenderungen wirken SOFORT: Jedes Steuerelement ruft _apply() auf, das
-die Konfiguration speichert und in der laufenden App anwendet (Hotkeys,
-Theme der Leiste, Modellwechsel ...). Einen Speichern-Knopf gibt es nicht.
+Optik nach Nutzer-Vorlage: dunkles Graphit, bunte Akzent-Kacheln pro
+Bereich, Koralle als Primäraktion. Alle Änderungen wirken SOFORT: Jedes
+Steuerelement ruft _apply() auf, das die Konfiguration speichert und in
+der laufenden App anwendet. Einen Speichern-Knopf gibt es nicht.
 """
 import threading
 import tkinter as tk
@@ -14,17 +15,9 @@ import audio
 import polish
 import transcriber
 from overlay import pretty_hotkey
-
-WINBG = ("#ececef", "#17171d")
-CARD = ("#ffffff", "#23232c")
-TXT = ("#1b1b22", "#ececf2")
-SUB = ("#8a8a96", "#9a9aa8")
-FIELD = ("#f3f3f6", "#2d2d38")
-FIELD_HOVER = ("#e7e7ec", "#383844")
-PRIMARY = ("#1a1a1f", "#e8e8f0")
-PRIMARY_HOVER = ("#31313a", "#cfcfd8")
-PRIMARY_TXT = ("#ffffff", "#17171d")
-BORDER = ("#e2e2e9", "#3a3a46")
+from ui_theme import (ACCENT_HOVER, BLUE, BORDER, CARD, FIELD, FIELD_HOVER,
+                      GREEN, ORANGE, PRIMARY, PRIMARY_HOVER, PRIMARY_TXT,
+                      SEG_TXT, SUB, TEAL, TXT, VIOLET, WINBG)
 
 MODEL_LABELS = {
     "large-v3-turbo": "Large v3 Turbo · empfohlen (1,6 GB)",
@@ -51,7 +44,7 @@ class SettingsWindow:
 
         self.win = ctk.CTkToplevel(root)
         self.win.title("WisperMe – Einstellungen")
-        self.win.geometry("640x760")
+        self.win.geometry("640x780")
         self.win.minsize(560, 420)
         self.win.resizable(True, True)
         self.win.configure(fg_color=WINBG)
@@ -61,6 +54,7 @@ class SettingsWindow:
         self.f_card = ctk.CTkFont("Segoe UI", 14, "bold")
         self.f_label = ctk.CTkFont("Segoe UI", 13)
         self.f_small = ctk.CTkFont("Segoe UI", 11)
+        self.f_icon = ctk.CTkFont("Segoe UI Emoji", 14)
 
         outer = ctk.CTkScrollableFrame(self.win, fg_color="transparent")
         outer.pack(fill="both", expand=True, padx=18, pady=(14, 0))
@@ -75,51 +69,42 @@ class SettingsWindow:
                      ).pack(side="left", padx=(10, 0), pady=(8, 0))
 
         # ------------------------------------------------------ Karte Aufnahme
-        card = self._card(outer, "Aufnahme")
+        card = self._card(outer, "Aufnahme", "🎙", BLUE)
         row = self._row(card, "Shortcut")
         self.hotkey_var = tk.StringVar(value=cfg["hotkey"])
-        self.hotkey_chip = ctk.CTkLabel(
-            row, text=pretty_hotkey(cfg["hotkey"]), font=self.f_label,
-            text_color=TXT, fg_color=FIELD, corner_radius=8, padx=14, pady=5)
-        self.hotkey_chip.pack(side="left", padx=(14, 0))
-        self.capture_btn = ctk.CTkButton(
-            row, text="Ändern…", width=92, height=30, corner_radius=15,
-            font=self.f_label, fg_color=PRIMARY, hover_color=PRIMARY_HOVER,
-            text_color=PRIMARY_TXT,
-            command=lambda: self._capture(self.hotkey_chip, self.capture_btn,
-                                          self.hotkey_var))
-        self.capture_btn.pack(side="right")
+        self.hotkey_chip = self._chip(row, pretty_hotkey(cfg["hotkey"]))
+        self.capture_btn = self._button(
+            row, "Ändern…", BLUE,
+            lambda: self._capture(self.hotkey_chip, self.capture_btn,
+                                  self.hotkey_var))
 
         row = self._row(card, "Modus")
         self.mode_seg = self._segment(row, list(MODE_LABELS.values()),
-                                      MODE_LABELS.get(cfg["hotkey_mode"], "Umschalten"))
-        self.mode_seg.pack(side="right")
+                                      MODE_LABELS.get(cfg["hotkey_mode"], "Umschalten"),
+                                      BLUE)
 
         row = self._row(card, "Auto-Stopp bei Stille")
         current_silence = SILENCE_LABELS.get(
             float(cfg.get("auto_stop_silence") or 0), "Aus")
         self.silence_seg = self._segment(row, list(SILENCE_LABELS.values()),
-                                         current_silence)
-        self.silence_seg.pack(side="right")
+                                         current_silence, BLUE)
+
+        row = self._row(card, "Musik/Videos bei Aufnahme stummschalten")
+        self.mute_switch = self._switch(row, cfg.get("mute_while_recording", False),
+                                        BLUE)
 
         row = self._row(card, "Shortcut Übersetzen → EN")
         self.translate_hotkey_var = tk.StringVar(value=cfg.get("translate_hotkey", ""))
-        self.translate_chip = ctk.CTkLabel(
-            row, text=pretty_hotkey(cfg.get("translate_hotkey", "")) or "—",
-            font=self.f_label, text_color=TXT, fg_color=FIELD,
-            corner_radius=8, padx=14, pady=5)
-        self.translate_chip.pack(side="left", padx=(14, 0))
-        self.translate_capture_btn = ctk.CTkButton(
-            row, text="Ändern…", width=92, height=30, corner_radius=15,
-            font=self.f_label, fg_color=PRIMARY, hover_color=PRIMARY_HOVER,
-            text_color=PRIMARY_TXT,
-            command=lambda: self._capture(self.translate_chip,
-                                          self.translate_capture_btn,
-                                          self.translate_hotkey_var))
-        self.translate_capture_btn.pack(side="right")
+        self.translate_chip = self._chip(
+            row, pretty_hotkey(cfg.get("translate_hotkey", "")) or "—")
+        self.translate_capture_btn = self._button(
+            row, "Ändern…", BLUE,
+            lambda: self._capture(self.translate_chip,
+                                  self.translate_capture_btn,
+                                  self.translate_hotkey_var))
 
         # ---------------------------------------------------- Karte Erkennung
-        card = self._card(outer, "Erkennung")
+        card = self._card(outer, "Erkennung", "🧠", VIOLET)
         row = self._row(card, "Modell")
         values = []
         for name, label in MODEL_LABELS.items():
@@ -129,14 +114,13 @@ class SettingsWindow:
         current = values[list(MODEL_LABELS).index(cfg["model"])] \
             if cfg["model"] in MODEL_LABELS else values[0]
         self.model_menu = self._dropdown(row, values, current, width=330)
-        self.model_menu.pack(side="right")
         ctk.CTkLabel(card, text="↓ = wird beim ersten Einsatz automatisch heruntergeladen",
                      font=self.f_small, text_color=SUB).pack(anchor="e", padx=18)
 
         row = self._row(card, "Sprache")
         self.lang_seg = self._segment(row, list(LANG_LABELS.values()),
-                                      LANG_LABELS.get(cfg["language"], "Deutsch"))
-        self.lang_seg.pack(side="right")
+                                      LANG_LABELS.get(cfg["language"], "Deutsch"),
+                                      VIOLET)
 
         row = self._row(card, "Mikrofon")
         self.devices = audio.list_input_devices()
@@ -146,7 +130,6 @@ class SettingsWindow:
             if idx == cfg.get("device_index"):
                 current_dev = name
         self.device_menu = self._dropdown(row, dev_values, current_dev, width=330)
-        self.device_menu.pack(side="right")
 
         row = self._row(card, "Eigene Begriffe")
         self.prompt_entry = ctk.CTkEntry(
@@ -160,29 +143,24 @@ class SettingsWindow:
         self.prompt_entry.bind("<Return>", lambda e: self._apply())
 
         # -------------------------------------------- Karte KI-Nachbearbeitung
-        card = self._card(outer, "KI-Nachbearbeitung")
+        card = self._card(outer, "KI-Nachbearbeitung", "✨", ORANGE)
         ctk.CTkLabel(card, text="Zweiter Shortcut: Diktat wird nach der Transkription lokal\n"
                      "geglättet — Selbstkorrekturen, Füllwörter, Grammatik (via Ollama).",
                      font=self.f_small, text_color=SUB, justify="left"
                      ).pack(anchor="w", padx=18)
         row = self._row(card, "Aktiv")
-        self.cleanup_switch = self._switch(row, cfg.get("cleanup_enabled", False))
+        self.cleanup_switch = self._switch(row, cfg.get("cleanup_enabled", False),
+                                           ORANGE)
 
         row = self._row(card, "Shortcut KI-Diktat")
         self.cleanup_hotkey_var = tk.StringVar(value=cfg.get("cleanup_hotkey", ""))
-        self.cleanup_chip = ctk.CTkLabel(
-            row, text=pretty_hotkey(cfg.get("cleanup_hotkey", "")) or "—",
-            font=self.f_label, text_color=TXT, fg_color=FIELD,
-            corner_radius=8, padx=14, pady=5)
-        self.cleanup_chip.pack(side="left", padx=(14, 0))
-        self.cleanup_capture_btn = ctk.CTkButton(
-            row, text="Ändern…", width=92, height=30, corner_radius=15,
-            font=self.f_label, fg_color=PRIMARY, hover_color=PRIMARY_HOVER,
-            text_color=PRIMARY_TXT,
-            command=lambda: self._capture(self.cleanup_chip,
-                                          self.cleanup_capture_btn,
-                                          self.cleanup_hotkey_var))
-        self.cleanup_capture_btn.pack(side="right")
+        self.cleanup_chip = self._chip(
+            row, pretty_hotkey(cfg.get("cleanup_hotkey", "")) or "—")
+        self.cleanup_capture_btn = self._button(
+            row, "Ändern…", ORANGE,
+            lambda: self._capture(self.cleanup_chip,
+                                  self.cleanup_capture_btn,
+                                  self.cleanup_hotkey_var))
 
         row = self._row(card, "Sprachmodell")
         ollama_models = polish.list_models(cfg.get("ollama_url", "http://127.0.0.1:11434"))
@@ -191,51 +169,46 @@ class SettingsWindow:
             ollama_models = [current_llm] + ollama_models
         self.cleanup_model_menu = self._dropdown(row, ollama_models, current_llm,
                                                  width=330)
-        self.cleanup_model_menu.pack(side="right")
 
         row = self._row(card, "Stil")
         self.style_seg = self._segment(
             row, list(polish.STYLE_LABELS.values()),
-            polish.STYLE_LABELS.get(cfg.get("cleanup_style", "neutral"), "Neutral"))
-        self.style_seg.pack(side="right")
+            polish.STYLE_LABELS.get(cfg.get("cleanup_style", "neutral"), "Neutral"),
+            ORANGE)
 
         # ------------------------------------------------- Karte Diktat-Regeln
-        card = self._card(outer, "Diktat-Regeln")
+        card = self._card(outer, "Diktat-Regeln", "📖", GREEN)
         ctk.CTkLabel(card, text="Einfache Textdateien — Änderungen gelten sofort, "
                      "ohne Neustart.", font=self.f_small, text_color=SUB
                      ).pack(anchor="w", padx=18)
         row = self._row(card, "Feste Wortersetzungen (Namen, Fachwörter …)")
-        ctk.CTkButton(row, text="Bearbeiten…", width=110, height=30,
-                      corner_radius=15, font=self.f_label, fg_color=FIELD,
-                      hover_color=FIELD_HOVER, text_color=TXT,
-                      command=lambda: self._open_rules("rules")).pack(side="right")
+        self._button(row, "Bearbeiten…", GREEN, lambda: self._open_rules("rules"),
+                     width=110)
         row = self._row(card, "KI-Stil je nach App (Outlook, Discord …)")
-        ctk.CTkButton(row, text="Bearbeiten…", width=110, height=30,
-                      corner_radius=15, font=self.f_label, fg_color=FIELD,
-                      hover_color=FIELD_HOVER, text_color=TXT,
-                      command=lambda: self._open_rules("profiles")).pack(side="right")
+        self._button(row, "Bearbeiten…", GREEN, lambda: self._open_rules("profiles"),
+                     width=110)
 
         # ------------------------------------------------------- Karte System
-        card = self._card(outer, "Darstellung & System")
+        card = self._card(outer, "Darstellung & System", "⚙", TEAL)
         row = self._row(card, "Design")
         self.theme_seg = self._segment(row, list(THEME_LABELS.values()),
-                                       THEME_LABELS.get(cfg.get("theme", "light"), "Hell"))
-        self.theme_seg.pack(side="right")
+                                       THEME_LABELS.get(cfg.get("theme", "light"), "Hell"),
+                                       TEAL)
 
         row = self._row(card, "Leiste im Leerlauf anzeigen")
-        self.idle_switch = self._switch(row, cfg.get("show_idle_bar", True))
+        self.idle_switch = self._switch(row, cfg.get("show_idle_bar", True), TEAL)
         row = self._row(card, "Mit Windows starten")
-        self.autostart_switch = self._switch(row, cfg.get("autostart", False))
+        self.autostart_switch = self._switch(row, cfg.get("autostart", False), TEAL)
 
         # ------------------------------------------------------------- Footer
         footer = ctk.CTkFrame(self.win, fg_color="transparent")
         footer.pack(fill="x", padx=18, pady=12)
-        ctk.CTkButton(footer, text="Schließen", width=120, height=34,
-                      corner_radius=17, font=self.f_label, fg_color=PRIMARY,
+        ctk.CTkButton(footer, text="Schließen", width=120, height=36,
+                      corner_radius=18, font=self.f_card, fg_color=PRIMARY,
                       hover_color=PRIMARY_HOVER, text_color=PRIMARY_TXT,
                       command=self.win.destroy).pack(side="right")
-        ctk.CTkButton(footer, text="Verlauf…", width=110, height=34,
-                      corner_radius=17, font=self.f_label, fg_color="transparent",
+        ctk.CTkButton(footer, text="Verlauf…", width=110, height=36,
+                      corner_radius=18, font=self.f_label, fg_color="transparent",
                       hover_color=FIELD_HOVER, text_color=TXT, border_width=1,
                       border_color=BORDER,
                       command=lambda: self.app.request("history")).pack(side="left")
@@ -247,11 +220,16 @@ class SettingsWindow:
 
     # ------------------------------------------------------------ UI-Bausteine
 
-    def _card(self, parent, title):
+    def _card(self, parent, title, icon, accent):
         card = ctk.CTkFrame(parent, fg_color=CARD, corner_radius=16)
         card.pack(fill="x", pady=(0, 12))
-        ctk.CTkLabel(card, text=title, font=self.f_card, text_color=TXT
-                     ).pack(anchor="w", padx=18, pady=(14, 2))
+        head = ctk.CTkFrame(card, fg_color="transparent")
+        head.pack(fill="x", padx=18, pady=(14, 2))
+        ctk.CTkLabel(head, text=icon, font=self.f_icon, text_color="#ffffff",
+                     fg_color=accent, corner_radius=9, width=32, height=32
+                     ).pack(side="left")
+        ctk.CTkLabel(head, text=title, font=self.f_card, text_color=TXT
+                     ).pack(side="left", padx=(10, 0))
         return card
 
     def _row(self, card, label):
@@ -261,16 +239,32 @@ class SettingsWindow:
                      ).pack(side="left")
         return row
 
-    def _segment(self, row, values, current):
+    def _chip(self, row, text):
+        chip = ctk.CTkLabel(row, text=text, font=self.f_label, text_color=TXT,
+                            fg_color=FIELD, corner_radius=8, padx=14, pady=5)
+        chip.pack(side="left", padx=(14, 0))
+        return chip
+
+    def _button(self, row, text, accent, command, width=92):
+        btn = ctk.CTkButton(
+            row, text=text, width=width, height=30, corner_radius=15,
+            font=self.f_label, fg_color=accent,
+            hover_color=ACCENT_HOVER.get(accent, accent),
+            text_color="#ffffff", command=command)
+        btn.pack(side="right")
+        return btn
+
+    def _segment(self, row, values, current, accent):
         seg = ctk.CTkSegmentedButton(
             row, values=values, height=30, corner_radius=15,
             font=self.f_small, fg_color=FIELD,
-            selected_color=("#ffffff", "#4a4a58"),
-            selected_hover_color=("#f2f2f7", "#565664"),
+            selected_color=accent,
+            selected_hover_color=ACCENT_HOVER.get(accent, accent),
             unselected_color=FIELD, unselected_hover_color=FIELD_HOVER,
-            text_color=TXT, text_color_disabled=SUB,
+            text_color=SEG_TXT, text_color_disabled=SUB,
             command=lambda _value: self._apply())
         seg.set(current)
+        seg.pack(side="right")
         return seg
 
     def _dropdown(self, row, values, current, width=300):
@@ -282,11 +276,12 @@ class SettingsWindow:
             dropdown_hover_color=FIELD,
             command=lambda _value: self._apply())
         menu.set(current)
+        menu.pack(side="right")
         return menu
 
-    def _switch(self, row, value):
-        sw = ctk.CTkSwitch(row, text="", width=46, progress_color=PRIMARY,
-                           fg_color=FIELD_HOVER, button_color=("#ffffff", "#17171d"),
+    def _switch(self, row, value, accent):
+        sw = ctk.CTkSwitch(row, text="", width=46, progress_color=accent,
+                           fg_color=FIELD_HOVER, button_color="#ffffff",
                            command=self._apply)
         if value:
             sw.select()
@@ -364,6 +359,7 @@ class SettingsWindow:
         new["translate_hotkey"] = self.translate_hotkey_var.get()
         new["auto_stop_silence"] = self._rev(SILENCE_LABELS,
                                              self.silence_seg.get(), 0)
+        new["mute_while_recording"] = bool(self.mute_switch.get())
 
         theme_changed = new["theme"] != self.app.cfg.get("theme")
         self.app.apply_settings(new)

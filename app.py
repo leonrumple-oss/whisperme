@@ -214,6 +214,9 @@ class App:
             self.tray.set_recording(True)
         if float(self.cfg.get("auto_stop_silence") or 0) > 0:
             threading.Thread(target=self._silence_monitor, daemon=True).start()
+        if self.cfg.get("mute_while_recording"):
+            import audiocontrol
+            threading.Thread(target=audiocontrol.mute_others, daemon=True).start()
         log.info("Aufnahme gestartet (%s)", mode)
 
     def _silence_monitor(self):
@@ -235,6 +238,9 @@ class App:
         audio_data = self.recorder.stop()
         if self.tray:
             self.tray.set_recording(False)
+        if self.cfg.get("mute_while_recording"):
+            import audiocontrol
+            threading.Thread(target=audiocontrol.unmute_others, daemon=True).start()
         if len(audio_data) < 16000 * 0.3:  # kuerzer als 0,3 s -> verwerfen
             self.state = "idle"
             return
@@ -398,6 +404,8 @@ class App:
         try:
             if self.state == "recording":
                 self.recorder.stop()
+            import audiocontrol
+            audiocontrol.unmute_others()
             keyboard.unhook_all()
         except Exception:
             pass
