@@ -11,16 +11,20 @@ log = logging.getLogger("wisperme")
 
 
 def _register_cuda_dlls() -> None:
-    """Macht die per pip installierten NVIDIA-DLLs (cuBLAS/cuDNN) auffindbar.
+    """Macht die NVIDIA-DLLs (cuBLAS/cuDNN) auffindbar.
 
     CTranslate2 laedt sie ueber den PATH, daher reicht add_dll_directory nicht.
+    Im EXE-Betrieb liegen die DLLs im Bundle-Ordner statt in site-packages.
     """
-    site = Path(sys.prefix) / "Lib" / "site-packages"
-    for sub in ("cublas", "cudnn", "cuda_nvrtc"):
-        dll_dir = site / "nvidia" / sub / "bin"
-        if dll_dir.is_dir():
-            os.add_dll_directory(str(dll_dir))
-            os.environ["PATH"] = str(dll_dir) + os.pathsep + os.environ.get("PATH", "")
+    from paths import BUNDLE_DIR
+    roots = [Path(sys.prefix) / "Lib" / "site-packages", BUNDLE_DIR]
+    for root in roots:
+        for sub in ("cublas", "cudnn", "cuda_nvrtc"):
+            dll_dir = root / "nvidia" / sub / "bin"
+            if dll_dir.is_dir():
+                os.add_dll_directory(str(dll_dir))
+                os.environ["PATH"] = str(dll_dir) + os.pathsep + \
+                    os.environ.get("PATH", "")
 
 
 _register_cuda_dlls()

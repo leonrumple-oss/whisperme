@@ -26,6 +26,21 @@ erneut drücken — der Text erscheint im aktiven Fenster. Läuft **komplett lok
 
 ## Installation
 
+### Weg 1: Fertige EXE (empfohlen für Einsteiger)
+
+Kein Python nötig: Auf der [Releases-Seite](../../releases) das ZIP
+herunterladen, in einen beliebigen Ordner entpacken (z. B. `C:\WisperMe`,
+nicht in `C:\Programme`) und **WisperMe.exe** starten. Beim ersten Start
+führt ein Assistent durch Mikrofon-Test und Shortcuts; das passende
+Whisper-Modell wird automatisch anhand der Hardware gewählt und geladen.
+Die CUDA-Bibliotheken für NVIDIA-GPUs sind enthalten; ohne NVIDIA-GPU läuft
+alles automatisch auf der CPU.
+
+Hinweis: Windows SmartScreen warnt bei unsignierten Downloads — über
+„Weitere Informationen → Trotzdem ausführen" starten.
+
+### Weg 2: Aus dem Quellcode
+
 Voraussetzungen: Windows 10/11, [Python 3.10+](https://www.python.org/downloads/)
 (beim Installieren „Add python.exe to PATH" anhaken). Eine NVIDIA-GPU ist
 empfehlenswert, aber nicht nötig — ohne GPU läuft WisperMe auf der CPU.

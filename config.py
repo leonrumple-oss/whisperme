@@ -1,8 +1,8 @@
 """Laden und Speichern der Einstellungen (config.json im App-Ordner)."""
 import json
-from pathlib import Path
 
-APP_DIR = Path(__file__).resolve().parent
+from paths import APP_DIR
+
 CONFIG_PATH = APP_DIR / "config.json"
 
 DEFAULTS = {

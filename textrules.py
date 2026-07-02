@@ -10,7 +10,8 @@ Aenderung (mtime) automatisch neu eingelesen.
 import re
 from pathlib import Path
 
-APP_DIR = Path(__file__).resolve().parent
+from paths import APP_DIR
+
 RULES_FILE = APP_DIR / "ersetzungen.txt"
 PROFILE_FILE = APP_DIR / "app-profile.txt"
 

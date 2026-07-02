@@ -14,9 +14,13 @@ import threading
 import time
 from pathlib import Path
 
-APP_DIR = Path(__file__).resolve().parent
-os.chdir(APP_DIR)
-sys.path.insert(0, str(APP_DIR))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from paths import APP_DIR, FROZEN  # noqa: E402
+
+try:
+    os.chdir(APP_DIR)
+except OSError:
+    pass
 
 # scharfe Darstellung und korrekte Koordinaten bei Windows-Skalierung
 try:
@@ -60,10 +64,13 @@ def set_autostart(enabled: bool):
     link = STARTUP_DIR / "WisperMe.vbs"
     try:
         if enabled:
-            pythonw = APP_DIR / ".venv" / "Scripts" / "pythonw.exe"
+            if FROZEN:
+                cmd = f'WshShell.Run """{sys.executable}""", 0, False\n'
+            else:
+                pythonw = APP_DIR / ".venv" / "Scripts" / "pythonw.exe"
+                cmd = f'WshShell.Run """{pythonw}"" ""{APP_DIR / "app.py"}""", 0, False\n'
             link.write_text(
-                'Set WshShell = CreateObject("WScript.Shell")\n'
-                f'WshShell.Run """{pythonw}"" ""{APP_DIR / "app.py"}""", 0, False\n',
+                'Set WshShell = CreateObject("WScript.Shell")\n' + cmd,
                 encoding="utf-8")
         elif link.is_file():
             link.unlink()

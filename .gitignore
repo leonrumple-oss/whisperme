@@ -3,6 +3,11 @@
 __pycache__/
 *.log
 
+# PyInstaller-Build (EXE wird als GitHub-Release verteilt)
+build/
+dist/
+WisperMe-*.zip
+
 # Nutzerspezifisch (wird beim ersten Start passend zur Hardware erzeugt)
 config.json
 history.json

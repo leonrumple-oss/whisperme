@@ -1,9 +1,9 @@
 """Diktat-Verlauf: die letzten Diktate lokal in history.json (max. 50)."""
 import json
 import time
-from pathlib import Path
 
-APP_DIR = Path(__file__).resolve().parent
+from paths import APP_DIR
+
 PATH = APP_DIR / "history.json"
 MAX_ENTRIES = 50
 
