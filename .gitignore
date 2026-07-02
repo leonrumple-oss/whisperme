@@ -1,0 +1,15 @@
+# Umgebung & Laufzeit-Artefakte
+.venv/
+__pycache__/
+*.log
+
+# Nutzerspezifisch (wird beim ersten Start passend zur Hardware erzeugt)
+config.json
+
+# Benchmark-Artefakte (maschinenspezifisch)
+benchmark_sample_de.wav
+benchmark_results.json
+
+# Test-/Screenshot-Reste
+settings_screenshot.png
+shot_*.png

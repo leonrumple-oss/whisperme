@@ -1,0 +1,10 @@
+faster-whisper>=1.2
+ctranslate2>=4.8
+sounddevice
+numpy
+keyboard
+pystray
+Pillow
+pyperclip
+nvidia-cublas-cu12
+nvidia-cudnn-cu12==9.*
