@@ -50,6 +50,10 @@ MODELS = {
 # Ab dieser Audiolaenge lohnt sich die gebatchte Pipeline deutlich
 BATCHED_THRESHOLD_S = 20.0
 
+# Turbo wurde nur fuer Transkription destilliert — task="translate" wird
+# stillschweigend ignoriert (Ausgabe bleibt in der Quellsprache)
+TRANSLATE_UNSUPPORTED = {"large-v3-turbo", "turbo"}
+
 
 def is_model_downloaded(name: str) -> bool:
     cache = Path.home() / ".cache" / "huggingface" / "hub"
@@ -65,9 +69,14 @@ class Transcriber:
         self.model_name = model_name
         self.model = None
         self.batched = None
+        self._helper = None  # kleines Zweitmodell fuer Uebersetzung mit Turbo
         self.device = "cuda" if ctranslate2.get_cuda_device_count() > 0 else "cpu"
         self.compute_type = "float16" if self.device == "cuda" else "int8"
         self._lock = threading.Lock()
+
+    @property
+    def supports_translate(self) -> bool:
+        return self.model_name not in TRANSLATE_UNSUPPORTED
 
     @property
     def loaded(self) -> bool:
@@ -127,3 +136,17 @@ class Transcriber:
                 text[:80] + ("..." if len(text) > 80 else ""),
             )
         return text
+
+    def translate_with_helper(self, audio, language="de", beam_size=5) -> str:
+        """Uebersetzt per kleinem Whisper-Hilfsmodell (Fallback ohne Ollama,
+        wenn das Hauptmodell Turbo ist und selbst nicht uebersetzen kann)."""
+        lang = None if language in ("", "auto") else language
+        with self._lock:
+            if self._helper is None:
+                log.info("Lade Uebersetzungs-Hilfsmodell 'small' ...")
+                self._helper = WhisperModel(
+                    "small", device=self.device, compute_type=self.compute_type)
+            segments, _ = self._helper.transcribe(
+                audio, task="translate", language=lang, beam_size=beam_size,
+                vad_filter=True, condition_on_previous_text=False)
+            return " ".join(seg.text.strip() for seg in segments).strip()

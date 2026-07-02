@@ -139,6 +139,10 @@ class OverlayBar:
             dots = "." * (int(now * 3) % 4)
             dot, dot_pulse = VIOLET, False
             label, hint, show_wave = "", f"Formuliere{dots}", False
+        elif state == "translating":
+            dots = "." * (int(now * 3) % 4)
+            dot, dot_pulse = BLUE, False
+            label, hint, show_wave = "", f"Übersetze{dots}", False
         elif state == "loading":
             dot, dot_pulse = BLUE, False
             label, hint, show_wave = "", self.app.status_message or "Lade Modell…", False

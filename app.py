@@ -252,15 +252,38 @@ class App:
                 time.sleep(0.1)
             if self.transcriber is None:
                 raise RuntimeError("Transcriber nicht initialisiert")
+            # Turbo kann Whispers translate-Task nicht -> dann erst normal
+            # transkribieren und anschliessend uebersetzen (LLM oder Hilfsmodell)
+            native_translate = (mode == "translate"
+                                and self.transcriber.supports_translate)
             text = self.transcriber.transcribe(
                 audio_data,
                 language=self.cfg["language"],
                 beam_size=self.cfg.get("beam_size", 5),
                 initial_prompt=self.cfg.get("initial_prompt", ""),
-                task="translate" if mode == "translate" else "transcribe",
+                task="translate" if native_translate else "transcribe",
             )
             import textrules
             text = textrules.apply(text)
+            if text and mode == "translate" and not native_translate:
+                self.state = "translating"
+                import polish
+                t0 = time.time()
+                result = polish.translate(
+                    text,
+                    model=self.cfg.get("cleanup_model", "qwen3:8b"),
+                    url=self.cfg.get("ollama_url", "http://127.0.0.1:11434"),
+                )
+                if result is None:
+                    log.info("Ollama nicht verfuegbar – Whisper-Hilfsmodell uebersetzt")
+                    result = self.transcriber.translate_with_helper(
+                        audio_data,
+                        language=self.cfg["language"],
+                        beam_size=self.cfg.get("beam_size", 5),
+                    )
+                text = result or text
+                log.info("Uebersetzt in %.2fs: %r", time.time() - t0,
+                         text[:80] + ("..." if len(text) > 80 else ""))
             if text and mode == "polish" and self.cfg.get("cleanup_enabled"):
                 # Stil ggf. anhand der aktiven App waehlen (app-profile.txt)
                 import winapp

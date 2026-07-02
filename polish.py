@@ -124,6 +124,47 @@ def polish(text: str, model: str = "qwen3:8b",
         return text
 
 
+TRANSLATE_PROMPT = (
+    "Du bist ein professioneller Übersetzer. Übersetze den folgenden Text "
+    "ins Englische. Gib NUR die englische Übersetzung aus — ohne "
+    "Anführungszeichen drumherum, ohne Kommentare, ohne Erklärungen.\n"
+    "Achtung bei deutschen Zeitangaben: „halb drei\" bedeutet 2:30 "
+    "(half past two), „viertel vor drei\" 2:45, „viertel nach drei\" 3:15."
+)
+
+
+def translate(text: str, model: str = "qwen3:8b",
+              url: str = "http://127.0.0.1:11434", timeout: float = 90):
+    """Uebersetzt ins Englische; None bei Fehler (Aufrufer hat Fallback)."""
+    if not text.strip():
+        return text
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": TRANSLATE_PROMPT},
+            {"role": "user", "content": text},
+        ],
+        "stream": False,
+        "think": False,
+        "keep_alive": "60m",
+        "options": {"temperature": 0.2},
+    }
+    try:
+        try:
+            data = _post(url, "/api/chat", payload, timeout)
+        except urllib.error.HTTPError as e:
+            if e.code == 400:
+                payload.pop("think", None)
+                data = _post(url, "/api/chat", payload, timeout)
+            else:
+                raise
+        result = (data.get("message") or {}).get("content", "").strip()
+        return result or None
+    except Exception as e:
+        log.warning("LLM-Übersetzung nicht möglich: %s", e)
+        return None
+
+
 def ensure_server(url: str = "http://127.0.0.1:11434") -> bool:
     """Prueft ob Ollama laeuft und startet es sonst unsichtbar."""
     import os
