@@ -46,8 +46,8 @@ Voraussetzungen: Windows 10/11, [Python 3.10+](https://www.python.org/downloads/
 empfehlenswert, aber nicht nötig — ohne GPU läuft WisperMe auf der CPU.
 
 ```
-git clone https://github.com/<user>/wisperme
-cd wisperme
+git clone https://github.com/leonrumple-oss/whisperme
+cd whisperme
 install.bat
 ```
 
