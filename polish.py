@@ -74,6 +74,12 @@ STYLE_LABELS = {
 }
 
 
+def _is_timeout(exc: Exception) -> bool:
+    """Erkennt Timeout-Fehler von urllib (direkt oder in URLError verpackt)."""
+    return isinstance(exc, TimeoutError) or \
+        isinstance(getattr(exc, "reason", None), TimeoutError)
+
+
 def _post(url: str, path: str, payload: dict, timeout: float):
     req = urllib.request.Request(
         url.rstrip("/") + path,
@@ -119,8 +125,13 @@ def polish(text: str, model: str = "qwen3:8b",
         if not result:
             return text
         return result
-    except Exception:
-        log.exception("KI-Nachbearbeitung fehlgeschlagen – nutze Rohtext")
+    except Exception as e:
+        if _is_timeout(e):
+            # GPU gerade ausgelastet (Spiel?) oder Modell laedt noch:
+            # lieber sofort den Rohtext einfuegen als den Nutzer warten lassen
+            log.warning("KI-Glättung nach %.0fs abgebrochen – nutze Rohtext", timeout)
+        else:
+            log.exception("KI-Nachbearbeitung fehlgeschlagen – nutze Rohtext")
         return text
 
 
@@ -161,7 +172,10 @@ def translate(text: str, model: str = "qwen3:8b",
         result = (data.get("message") or {}).get("content", "").strip()
         return result or None
     except Exception as e:
-        log.warning("LLM-Übersetzung nicht möglich: %s", e)
+        if _is_timeout(e):
+            log.warning("LLM-Übersetzung nach %.0fs abgebrochen – nutze Fallback", timeout)
+        else:
+            log.warning("LLM-Übersetzung nicht möglich: %s", e)
         return None
 
 

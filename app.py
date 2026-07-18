@@ -86,6 +86,7 @@ class App:
         self.status_message = "Starte…"
         self.record_started = 0.0
         self._last_toggle = 0.0
+        self._last_warmup = 0.0
         self._hotkey_handles = []
         self._rec_mode = "raw"  # "raw" = nur Diktat, "polish" = mit KI-Glaettung
         self._requests = queue.Queue()
@@ -217,6 +218,19 @@ class App:
         if self.cfg.get("mute_while_recording"):
             import audiocontrol
             threading.Thread(target=audiocontrol.mute_others, daemon=True).start()
+        # Korrektur-Modell schon waehrend des Sprechens (wieder) in den VRAM
+        # holen - z.B. nach einem Ollama-Update/-Neustart. Gedrosselt, und nur
+        # bei Bedarf: dauerhaft belegt bleibt der VRAM dadurch nicht, nach
+        # 60 min ohne Diktat gibt Ollama ihn wieder frei (wichtig fuers Zocken).
+        if mode in ("polish", "translate") and self.cfg.get("cleanup_enabled") \
+                and time.time() - self._last_warmup > 300:
+            self._last_warmup = time.time()
+            import polish
+            threading.Thread(
+                target=polish.warmup,
+                args=(self.cfg.get("cleanup_model", "qwen3:8b"),
+                      self.cfg.get("ollama_url", "http://127.0.0.1:11434")),
+                daemon=True).start()
         log.info("Aufnahme gestartet (%s)", mode)
 
     def _silence_monitor(self):
@@ -279,6 +293,7 @@ class App:
                     text,
                     model=self.cfg.get("cleanup_model", "qwen3:8b"),
                     url=self.cfg.get("ollama_url", "http://127.0.0.1:11434"),
+                    timeout=float(self.cfg.get("cleanup_timeout", 15)),
                 )
                 if result is None:
                     log.info("Ollama nicht verfuegbar – Whisper-Hilfsmodell uebersetzt")
@@ -305,6 +320,7 @@ class App:
                         model=self.cfg.get("cleanup_model", "qwen3:8b"),
                         url=self.cfg.get("ollama_url", "http://127.0.0.1:11434"),
                         style=style,
+                        timeout=float(self.cfg.get("cleanup_timeout", 15)),
                     )
                     log.info("KI-Glaettung (%s) in %.2fs: %r", style,
                              time.time() - t0,

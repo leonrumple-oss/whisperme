@@ -25,6 +25,7 @@ DEFAULTS = {
     "cleanup_hotkey": "ctrl+alt+enter",
     "cleanup_model": "qwen3:8b",
     "cleanup_style": "neutral",   # neutral|professionell|locker|stichpunkte|email
+    "cleanup_timeout": 15,        # max. Sekunden fuer KI-Glaettung/Uebersetzung, danach Rohtext
     "ollama_url": "http://127.0.0.1:11434",
     "translate_hotkey": "ctrl+alt+t",  # Diktat -> englische Uebersetzung ("" = aus)
     "auto_stop_silence": 0,       # Sekunden Stille bis Auto-Stopp (0 = aus)
